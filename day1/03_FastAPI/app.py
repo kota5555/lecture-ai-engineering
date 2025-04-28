@@ -40,6 +40,19 @@ app.add_middleware(
 )
 
 # --- データモデル定義 ---
+# --- バッチリクエスト用データモデル ---
+class BatchGenerationRequest(BaseModel):
+    prompts: List[str]  # 複数プロンプト
+    max_new_tokens: Optional[int] = 512
+    do_sample: Optional[bool] = True
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 0.9
+
+class BatchGenerationResponse(BaseModel):
+    results: List[str]  # それぞれの生成結果
+    response_time: float
+
+
 class Message(BaseModel):
     role: str
     content: str
@@ -131,6 +144,56 @@ def extract_assistant_response(outputs, user_prompt):
     return assistant_response
 
 # --- FastAPIエンドポイント定義 ---
+# --- バッチリクエスト用エンドポイント ---
+@app.post("/generate_batch", response_model=BatchGenerationResponse)
+async def generate_batch(request: BatchGenerationRequest):
+    global model
+
+    if model is None:
+        print("バッチエンドポイント: モデルが読み込まれていません。読み込みを試みます...")
+        load_model_task()
+        if model is None:
+            print("バッチエンドポイント: モデルの読み込みに失敗しました。")
+            raise HTTPException(status_code=503, detail="モデルが利用できません。後でもう一度お試しください。")
+
+    if len(request.prompts) < 3:
+        # プロンプトが3個未満ならエラーを返す
+        print(f"受信したプロンプト数: {len(request.prompts)}件 → エラー")
+        raise HTTPException(status_code=400, detail="バッチリクエストは最低3件以上のプロンプトを指定してください。")
+
+    try:
+        start_time = time.time()
+        print(f"バッチリクエスト受信: {len(request.prompts)}個のプロンプト")
+
+        results = []
+
+        for idx, prompt in enumerate(request.prompts):
+            print(f"プロンプト{idx+1}を処理中: {prompt[:50]}...")  # 長い場合は切り捨て
+            outputs = model(
+                prompt,
+                max_new_tokens=request.max_new_tokens,
+                do_sample=request.do_sample,
+                temperature=request.temperature,
+                top_p=request.top_p,
+            )
+            assistant_response = extract_assistant_response(outputs, prompt)
+            results.append(assistant_response)
+
+        end_time = time.time()
+        response_time = end_time - start_time
+        print(f"バッチ応答生成時間: {response_time:.2f}秒")
+
+        return BatchGenerationResponse(
+            results=results,
+            response_time=response_time
+        )
+
+    except Exception as e:
+        print(f"バッチ応答生成中にエラーが発生しました: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"バッチ応答の生成中にエラーが発生しました: {str(e)}")
+
+
 @app.on_event("startup")
 async def startup_event():
     """起動時にモデルを初期化"""
