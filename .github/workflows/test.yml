@@ -40,7 +40,7 @@ jobs:
       run: |
         pytest day5/演習3/tests/test_model.py -v
     
-        - name: Run Titanic model and check accuracy
+    - name: Run Titanic model and check accuracy
       run: |
         python day5/演習1/main.py
 
