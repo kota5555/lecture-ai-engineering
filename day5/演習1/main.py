@@ -51,6 +51,16 @@ def train_and_evaluate(
     accuracy = accuracy_score(y_test, predictions)
     return model, accuracy
 
+def get_previous_best_accuracy(path="best_accuracy.txt"):
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return float(f.read().strip())
+    return None
+
+def save_best_accuracy(accuracy, path="best_accuracy.txt"):
+    with open(path, "w") as f:
+        f.write(str(accuracy))
+
 
 # モデル保存
 def log_model(model, accuracy, params):
@@ -121,3 +131,16 @@ if __name__ == "__main__":
     with open(model_path, "wb") as f:
         pickle.dump(model, f)
     print(f"モデルを {model_path} に保存しました")
+
+        # 精度比較と通知
+    best_accuracy = get_previous_best_accuracy()
+    if best_accuracy is not None:
+        if accuracy < best_accuracy:
+            print(f"::warning::今回のモデルの精度は過去の最高精度を下回っています（accuracy: {accuracy:.4f} < best: {best_accuracy:.4f}）")
+        else:
+            print("✅ 精度は前回以上です。記録を更新します。")
+            save_best_accuracy(accuracy)
+    else:
+        print("🆕 初回実行：精度を記録しました。")
+        save_best_accuracy(accuracy)
+        
