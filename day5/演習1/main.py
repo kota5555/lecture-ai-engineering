@@ -52,6 +52,7 @@ def train_and_evaluate(
     return model, accuracy
 
 
+
 # モデル保存
 def log_model(model, accuracy, params):
     with mlflow.start_run():
@@ -121,3 +122,5 @@ if __name__ == "__main__":
     with open(model_path, "wb") as f:
         pickle.dump(model, f)
     print(f"モデルを {model_path} に保存しました")
+
+      

@@ -171,3 +171,34 @@ def test_model_reproducibility(sample_data, preprocessor):
     assert np.array_equal(
         predictions1, predictions2
     ), "モデルの予測結果に再現性がありません"
+
+def get_previous_best_accuracy(path="best_accuracy.txt"):
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return float(f.read().strip())
+    return None
+
+def save_best_accuracy(train_model, path="best_accuracy.txt"):
+
+
+    model, X_test, y_test = train_model
+
+    # 予測と精度計算
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+
+    with open(path, "w") as f:
+        f.write(str(accuracy))
+  # 精度比較と通知
+    best_accuracy = get_previous_best_accuracy()
+    
+    if best_accuracy is not None:
+        if accuracy < best_accuracy:
+            print(f"::warning::今回のモデルの精度は過去の最高精度を下回っています（accuracy: {accuracy:.4f} < best: {best_accuracy:.4f}）")
+        else:
+            print("✅ 精度は前回以上です。記録を更新します。")
+            save_best_accuracy(accuracy)
+    else:
+        print("🆕 初回実行：精度を記録しました。")
+        save_best_accuracy(accuracy)
+        
